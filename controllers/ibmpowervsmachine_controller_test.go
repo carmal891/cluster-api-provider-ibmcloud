@@ -32,10 +32,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
+
 	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -278,14 +280,13 @@ func TestIBMPowerVSMachineReconciler_Delete(t *testing.T) {
 			g := NewWithT(t)
 			setup(t)
 			t.Cleanup(teardown)
+
+			pvsmachine := newIBMPowerVSMachine()
+
 			machineScope = &scope.PowerVSMachineScope{
-				Logger:           klog.Background(),
-				IBMPowerVSClient: mockpowervs,
-				IBMPowerVSMachine: &infrav1beta2.IBMPowerVSMachine{
-					ObjectMeta: metav1.ObjectMeta{
-						Finalizers: []string{infrav1beta2.IBMPowerVSMachineFinalizer},
-					},
-				},
+				Logger:            klog.Background(),
+				IBMPowerVSClient:  mockpowervs,
+				IBMPowerVSMachine: pvsmachine,
 				IBMPowerVSCluster: &infrav1beta2.IBMPowerVSCluster{},
 			}
 			_, err := reconciler.reconcileDelete(machineScope)
@@ -319,16 +320,8 @@ func TestIBMPowerVSMachineReconciler_Delete(t *testing.T) {
 			g := NewWithT(t)
 			setup(t)
 			t.Cleanup(teardown)
-
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "bootsecret",
-					Namespace: "default",
-				},
-				Data: map[string][]byte{
-					"value": []byte("user data"),
-				},
-			}
+			secret := newSecret()
+			machine := newMachine()
 
 			mockClient := fake.NewClientBuilder().WithObjects([]client.Object{secret}...).Build()
 			machineScope = &scope.PowerVSMachineScope{
@@ -346,16 +339,7 @@ func TestIBMPowerVSMachineReconciler_Delete(t *testing.T) {
 				},
 				IBMPowerVSCluster: &infrav1beta2.IBMPowerVSCluster{},
 				DHCPIPCacheStore:  cache.NewTTLStore(powervs.CacheKeyFunc, powervs.CacheTTL),
-				Machine: &capiv1beta1.Machine{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "default",
-					},
-					Spec: capiv1beta1.MachineSpec{
-						Bootstrap: capiv1beta1.Bootstrap{
-							DataSecretName: ptr.To("bootsecret"),
-						},
-					},
-				},
+				Machine:           machine,
 			}
 			mockpowervs.EXPECT().DeleteInstance(machineScope.IBMPowerVSMachine.Status.InstanceID).Return(nil)
 			_, err := reconciler.reconcileDelete(machineScope)
@@ -460,6 +444,8 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 			setup(t)
 			t.Cleanup(teardown)
 			var instances = &models.PVMInstances{}
+			machine := newMachine()
+			pvsMachine := newIBMPowerVSMachine()
 			mockclient := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects().Build()
 			machineScope = &scope.PowerVSMachineScope{
 				Logger: klog.Background(),
@@ -469,19 +455,8 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 						InfrastructureReady: true,
 					},
 				},
-				Machine: &capiv1beta1.Machine{
-					Spec: capiv1beta1.MachineSpec{
-						Bootstrap: capiv1beta1.Bootstrap{
-							DataSecretName: ptr.To("data-secret"),
-						},
-					},
-				},
-				IBMPowerVSMachine: &infrav1beta2.IBMPowerVSMachine{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:       *ptr.To("capi-test-machine"),
-						Finalizers: []string{infrav1beta2.IBMPowerVSMachineFinalizer},
-					},
-				},
+				Machine:           machine,
+				IBMPowerVSMachine: pvsMachine,
 				IBMPowerVSImage: &infrav1beta2.IBMPowerVSImage{
 					Status: infrav1beta2.IBMPowerVSImageStatus{
 						Ready: true,
@@ -502,55 +477,12 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 			g := NewWithT(t)
 			setup(t)
 			t.Cleanup(teardown)
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						capiv1beta1.ClusterNameLabel: "powervs-cluster",
-					},
-					Name:      "bootsecret",
-					Namespace: "default",
-				},
-				Data: map[string][]byte{
-					"value": []byte("user data"),
-				},
-			}
 
-			pvsmachine := &infrav1beta2.IBMPowerVSMachine{
-
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       *ptr.To("capi-test-machine"),
-					Finalizers: []string{infrav1beta2.IBMPowerVSMachineFinalizer},
-				},
-				Status: infrav1beta2.IBMPowerVSMachineStatus{
-					Ready: true,
-				},
-				Spec: infrav1beta2.IBMPowerVSMachineSpec{
-					MemoryGiB:  8,
-					Processors: intstr.FromString("0.5"),
-					Image: &infrav1beta2.IBMPowerVSResourceReference{
-						ID: ptr.To("capi-image-id"),
-					},
-					Network: infrav1beta2.IBMPowerVSResourceReference{
-						ID: ptr.To("capi-net-id"),
-					},
-					ServiceInstanceID: *ptr.To("service-instance-1"),
-				},
-			}
-
-			machine := &capiv1beta1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "owner-machine",
-					Namespace: "default",
-					Labels: map[string]string{
-						"cluster.x-k8s.io/control-plane": "true",
-					},
-				},
-
-				Spec: capiv1beta1.MachineSpec{
-					Bootstrap: capiv1beta1.Bootstrap{
-						DataSecretName: ptr.To("bootsecret"),
-					},
-				},
+			secret := newSecret()
+			pvsmachine := newIBMPowerVSMachine()
+			machine := newMachine()
+			machine.Labels = map[string]string{
+				"cluster.x-k8s.io/control-plane": "true",
 			}
 
 			mockclient := fake.NewClientBuilder().WithObjects([]client.Object{secret, pvsmachine, machine}...).Build()
@@ -619,7 +551,6 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 				ID:                 core.StringPtr("capi-test-lb-id"),
 				ProvisioningStatus: core.StringPtr("active"),
 				Name:               core.StringPtr("capi-test-lb-name"),
-				Pools:              []vpcv1.LoadBalancerPoolReference{},
 			}
 
 			mockpowervs.EXPECT().GetAllInstance().Return(instanceReferences, nil)
@@ -637,55 +568,12 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 			g := NewWithT(t)
 			setup(t)
 			t.Cleanup(teardown)
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						capiv1beta1.ClusterNameLabel: "powervs-cluster",
-					},
-					Name:      "bootsecret",
-					Namespace: "default",
-				},
-				Data: map[string][]byte{
-					"value": []byte("user data"),
-				},
-			}
 
-			pvsmachine := &infrav1beta2.IBMPowerVSMachine{
-
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       *ptr.To("capi-test-machine"),
-					Finalizers: []string{infrav1beta2.IBMPowerVSMachineFinalizer},
-				},
-				Status: infrav1beta2.IBMPowerVSMachineStatus{
-					Ready: true,
-				},
-				Spec: infrav1beta2.IBMPowerVSMachineSpec{
-					MemoryGiB:  8,
-					Processors: intstr.FromString("0.5"),
-					Image: &infrav1beta2.IBMPowerVSResourceReference{
-						ID: ptr.To("capi-image-id"),
-					},
-					Network: infrav1beta2.IBMPowerVSResourceReference{
-						ID: ptr.To("capi-net-id"),
-					},
-					ServiceInstanceID: *ptr.To("service-instance-1"),
-				},
-			}
-
-			machine := &capiv1beta1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "owner-machine",
-					Namespace: "default",
-					Labels: map[string]string{
-						"cluster.x-k8s.io/control-plane": "true",
-					},
-				},
-
-				Spec: capiv1beta1.MachineSpec{
-					Bootstrap: capiv1beta1.Bootstrap{
-						DataSecretName: ptr.To("bootsecret"),
-					},
-				},
+			secret := newSecret()
+			pvsmachine := newIBMPowerVSMachine()
+			machine := newMachine()
+			machine.Labels = map[string]string{
+				"cluster.x-k8s.io/control-plane": "true",
 			}
 
 			mockclient := fake.NewClientBuilder().WithObjects([]client.Object{secret, pvsmachine, machine}...).Build()
@@ -765,10 +653,6 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 			loadBalancerPoolMemberCollection := &vpcv1.LoadBalancerPoolMemberCollection{
 				Members: []vpcv1.LoadBalancerPoolMember{
 					{
-						Port: core.Int64Ptr(int64(infrav1beta2.DefaultAPIServerPort)),
-						Target: &vpcv1.LoadBalancerPoolMemberTarget{
-							Address: core.StringPtr("192.168.1.1"),
-						},
 						ID: core.StringPtr("capi-test-lb-pool-id"),
 					},
 				},
@@ -776,7 +660,6 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 
 			loadBalancerPoolMember := &vpcv1.LoadBalancerPoolMember{
 				ID:                 core.StringPtr("capi-test-lb-pool-member-id"),
-				Port:               core.Int64Ptr(int64(infrav1beta2.DefaultAPIServerPort)),
 				ProvisioningStatus: core.StringPtr("update-pending"),
 			}
 
@@ -798,47 +681,10 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 			g := NewWithT(t)
 			setup(t)
 			t.Cleanup(teardown)
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						capiv1beta1.ClusterNameLabel: "powervs-cluster",
-					},
-					Name:      "bootsecret",
-					Namespace: "default",
-				},
-				Data: map[string][]byte{
-					"value": []byte("user data"),
-				},
-			}
 
-			pvsmachine := &infrav1beta2.IBMPowerVSMachine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       *ptr.To("capi-test-machine"),
-					Finalizers: []string{infrav1beta2.IBMPowerVSMachineFinalizer},
-				},
-				Spec: infrav1beta2.IBMPowerVSMachineSpec{
-					MemoryGiB:  8,
-					Processors: intstr.FromString("0.5"),
-					Image: &infrav1beta2.IBMPowerVSResourceReference{
-						ID: ptr.To("capi-image-id"),
-					},
-					Network: infrav1beta2.IBMPowerVSResourceReference{
-						ID: ptr.To("capi-net-id"),
-					},
-					ServiceInstanceID: *ptr.To("service-instance-1"),
-				},
-			}
-
-			machine := &capiv1beta1.Machine{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "owner-machine",
-					Namespace: "default"},
-				Spec: capiv1beta1.MachineSpec{
-					Bootstrap: capiv1beta1.Bootstrap{
-						DataSecretName: ptr.To("bootsecret"),
-					},
-				},
-			}
+			secret := newSecret()
+			pvsmachine := newIBMPowerVSMachine()
+			machine := newMachine()
 
 			mockclient := fake.NewClientBuilder().WithObjects([]client.Object{secret, pvsmachine, machine}...).Build()
 			machineScope = &scope.PowerVSMachineScope{
@@ -936,56 +782,12 @@ func TestIBMPowerVSMachineReconciler_ReconcileOperations(t *testing.T) {
 		g := NewWithT(t)
 		setup(t)
 		t.Cleanup(teardown)
-		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					capiv1beta1.ClusterNameLabel: "powervs-cluster",
-				},
-				Name:      "bootsecret",
-				Namespace: "default",
-			},
-			Data: map[string][]byte{
-				"value": []byte("user data"),
-			},
+		secret := newSecret()
+		pvsmachine := newIBMPowerVSMachine()
+		pvsmachine.ObjectMeta.Labels = map[string]string{
+			"node-role.kubernetes.io/worker": "true",
 		}
-
-		pvsmachine := &infrav1beta2.IBMPowerVSMachine{
-
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       *ptr.To("capi-test-machine"),
-				Finalizers: []string{infrav1beta2.IBMPowerVSMachineFinalizer},
-				Labels: map[string]string{
-					"node-role.kubernetes.io/worker": "true",
-				},
-			},
-			Status: infrav1beta2.IBMPowerVSMachineStatus{
-				Ready: true,
-			},
-			Spec: infrav1beta2.IBMPowerVSMachineSpec{
-				MemoryGiB:  8,
-				Processors: intstr.FromString("0.5"),
-				Image: &infrav1beta2.IBMPowerVSResourceReference{
-					ID: ptr.To("capi-image-id"),
-				},
-				Network: infrav1beta2.IBMPowerVSResourceReference{
-					ID: ptr.To("capi-net-id"),
-				},
-				ServiceInstanceID: *ptr.To("service-instance-1"),
-			},
-		}
-
-		machine := &capiv1beta1.Machine{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "owner-machine",
-				Namespace: "default",
-			},
-
-			Spec: capiv1beta1.MachineSpec{
-				Bootstrap: capiv1beta1.Bootstrap{
-					DataSecretName: ptr.To("bootsecret"),
-				},
-			},
-		}
+		machine := newMachine()
 
 		mockclient := fake.NewClientBuilder().WithObjects([]client.Object{secret, pvsmachine, machine}...).Build()
 
@@ -1090,5 +892,54 @@ func createObject(g *WithT, obj client.Object, namespace string) {
 func cleanupObject(g *WithT, obj client.Object) {
 	if obj.DeepCopyObject() != nil {
 		g.Expect(testEnv.Cleanup(ctx, obj)).To(Succeed())
+	}
+}
+
+func newSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				capiv1beta1.ClusterNameLabel: "powervs-cluster",
+			},
+			Name:      "bootsecret",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"value": []byte("user data"),
+		},
+	}
+}
+
+func newIBMPowerVSMachine() *infrav1beta2.IBMPowerVSMachine {
+	return &infrav1beta2.IBMPowerVSMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       *ptr.To("capi-test-machine"),
+			Finalizers: []string{infrav1beta2.IBMPowerVSMachineFinalizer},
+		},
+		Spec: infrav1beta2.IBMPowerVSMachineSpec{
+			MemoryGiB:  8,
+			Processors: intstr.FromString("0.5"),
+			Image: &infrav1beta2.IBMPowerVSResourceReference{
+				ID: ptr.To("capi-image-id"),
+			},
+			Network: infrav1beta2.IBMPowerVSResourceReference{
+				ID: ptr.To("capi-net-id"),
+			},
+			ServiceInstanceID: *ptr.To("service-instance-1"),
+		},
+	}
+}
+
+func newMachine() *capiv1beta1.Machine {
+	return &capiv1beta1.Machine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "owner-machine",
+			Namespace: "default",
+		},
+		Spec: capiv1beta1.MachineSpec{
+			Bootstrap: capiv1beta1.Bootstrap{
+				DataSecretName: ptr.To("bootsecret"),
+			},
+		},
 	}
 }

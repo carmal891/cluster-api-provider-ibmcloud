@@ -200,10 +200,6 @@ func (r *IBMPowerVSMachineReconciler) getOrCreate(scope *scope.PowerVSMachineSco
 
 // handleLoadBalancerPoolMemberConfiguration handles loadbalancer pool member creation flow.
 func (r *IBMPowerVSMachineReconciler) handleLoadBalancerPoolMemberConfiguration(machineScope *scope.PowerVSMachineScope) (ctrl.Result, error) {
-	if !util.IsControlPlaneMachine(machineScope.Machine) {
-		return ctrl.Result{}, nil
-	}
-	machineScope.Info("Configuring control plane machine to backend LoadBalancer pool", "machine name", machineScope.IBMPowerVSMachine.Name)
 	poolMember, err := machineScope.CreateVPCLoadBalancerPoolMember()
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed CreateVPCLoadBalancerPoolMember %s: %w", machineScope.IBMPowerVSMachine.Name, err)
@@ -216,6 +212,8 @@ func (r *IBMPowerVSMachineReconciler) handleLoadBalancerPoolMemberConfiguration(
 }
 
 func (r *IBMPowerVSMachineReconciler) reconcileNormal(machineScope *scope.PowerVSMachineScope) (ctrl.Result, error) {
+	ctx := context.Background()
+	log := ctrl.LoggerFrom(ctx)
 	machineScope.Info("Reconciling IBMPowerVSMachine")
 
 	if !machineScope.Cluster.Status.InfrastructureReady {
@@ -303,12 +301,13 @@ func (r *IBMPowerVSMachineReconciler) reconcileNormal(machineScope *scope.PowerV
 	machineScope.Info("updating loadbalancer for machine", "name", machineScope.IBMPowerVSMachine.Name)
 	internalIP := machineScope.GetMachineInternalIP()
 	if internalIP == "" {
-		machineScope.Info("Unable to update the LoadBalancer, Machine internal IP not yet set", "machine name", machineScope.IBMPowerVSMachine.Name)
+		machineScope.Info("Unable to update the LoadBalancer, Machine internal IP not yet set", "machineName", machineScope.IBMPowerVSMachine.Name)
 		return ctrl.Result{}, nil
 	}
 
-	if poolMemberReconcileResult, err := r.handleLoadBalancerPoolMemberConfiguration(machineScope); err != nil || poolMemberReconcileResult.RequeueAfter > 0 {
-		return poolMemberReconcileResult, err
+	if util.IsControlPlaneMachine(machineScope.Machine) {
+		log.V(3).Info("skipping loadbalancer configuration as it is not control plane machine", "machineName", machineScope.IBMPowerVSMachine.Name)
+		return r.handleLoadBalancerPoolMemberConfiguration(machineScope)
 	}
 
 	return ctrl.Result{}, nil
