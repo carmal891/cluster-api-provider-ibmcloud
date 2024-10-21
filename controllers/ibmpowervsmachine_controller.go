@@ -212,8 +212,6 @@ func (r *IBMPowerVSMachineReconciler) handleLoadBalancerPoolMemberConfiguration(
 }
 
 func (r *IBMPowerVSMachineReconciler) reconcileNormal(machineScope *scope.PowerVSMachineScope) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := ctrl.LoggerFrom(ctx)
 	machineScope.Info("Reconciling IBMPowerVSMachine")
 
 	if !machineScope.Cluster.Status.InfrastructureReady {
@@ -306,9 +304,10 @@ func (r *IBMPowerVSMachineReconciler) reconcileNormal(machineScope *scope.PowerV
 	}
 
 	if util.IsControlPlaneMachine(machineScope.Machine) {
-		log.V(3).Info("skipping loadbalancer configuration as it is not control plane machine", "machineName", machineScope.IBMPowerVSMachine.Name)
+		machineScope.Info("Configuring loadbalancer configuration for control plane machine", "machineName", machineScope.IBMPowerVSMachine.Name)
 		return r.handleLoadBalancerPoolMemberConfiguration(machineScope)
 	}
+	machineScope.Info("skipping loadbalancer configuration as it is not control plane machine", "machineName", machineScope.IBMPowerVSMachine.Name)
 
 	return ctrl.Result{}, nil
 }
