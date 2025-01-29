@@ -87,3 +87,4 @@ See also our [contributor guide](CONTRIBUTING.md) and the Kubernetes [community 
 Participation in the Kubernetes community is governed by the [Kubernetes Code of Conduct](code-of-conduct.md).
 
 <!-- ANCHOR_END: Community -->
+.
