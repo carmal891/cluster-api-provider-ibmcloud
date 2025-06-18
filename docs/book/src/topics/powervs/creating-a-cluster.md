@@ -2,9 +2,7 @@
 
 > **Note:**
 > A PowerVS cluster can be deployed with different customisations. Pick one of the following templates as per your need and fulfill the [prerequisites](prerequisites.md) before proceeding with cluster creation.
-> - [PowerVS cluster with user provided resources](#deploy-a-powervs-cluster-with-user-provided-resources)
 > - [PowerVS cluster with infrastructure creation](#deploy-a-powervs-cluster-with-infrastructure-creation)
-> - [PowerVS cluster with external cloud provider](#deploy-a-powervs-cluster-with-external-cloud-provider)
 > - [PowerVS cluster with cluster class](#deploy-a-powervs-cluster-with-cluster-class)
 
 Now that we have a management cluster ready, you can create your workload cluster by 
@@ -40,7 +38,10 @@ following the steps below.
   **Replace the following snippet with the template of your choice.**
 
     > **Note:**
-    > The `IBMPOWERVS_IMAGE_ID` value below should reflect the ID of the custom image and the `kubernetes-version` value below should reflect the kubernetes version of the custom image.
+    > - Set `EXP_CLUSTER_RESOURCE_SET` to `true` as the cluster will be deployed with external cloud provider which will create the resources to run the cloud controller manager.
+    > - The `IBMPOWERVS_IMAGE_NAME` value below should reflect the name of the custom image and the `kubernetes-version` value below should reflect the kubernetes version of the custom image.
+    > - While working with unreleased versions like from main branch, instead of `--flavor=powervs` use `--from=./templates/cluster-template-powervs.yaml`.
+    > - Refer detailed information on PowerVS variables [here](/topics/powervs/creating-a-cluster#note-refer-below-for-more-detailed-information-on-powervs-variables)
 
     ```console
     IBMPOWERVS_SSHKEY_NAME="my-pub-key" \
@@ -50,6 +51,10 @@ following the steps below.
     IBMPOWERVS_IMAGE_NAME="capibm-powervs-centos-streams8-1-26-2" \
     IBMPOWERVS_SERVICE_INSTANCE_ID="3229a94c-af54-4212-bf60-6202b6fd0a07" \
     IBMPOWERVS_NETWORK_NAME="capi-test" \
+    IBMACCOUNT_ID="ibm-accountid" \
+    IBMPOWERVS_REGION="osa" \
+    IBMPOWERVS_ZONE="osa21" \
+    BASE64_API_KEY=$(echo -n $IBMCLOUD_API_KEY | base64) \
     clusterctl generate cluster ibm-powervs-1 --kubernetes-version v1.26.2 \
     --target-namespace default \
     --control-plane-machine-count=3 \
@@ -131,31 +136,12 @@ following the steps below.
     ibm-powervs-1-md-0-4dc5c             Ready    <none>   41h   v1.26.2
     ibm-powervs-1-md-0-dbxb7             Ready    <none>   20h   v1.26.2
 
-### Deploy a PowerVS cluster with user provided resources
-
-  ```
-  IBMPOWERVS_SSHKEY_NAME="my-pub-key" \
-  IBMPOWERVS_VIP="192.168.167.6" \
-  IBMPOWERVS_VIP_EXTERNAL="163.68.65.6" \
-  IBMPOWERVS_VIP_CIDR="29" \
-  IBMPOWERVS_IMAGE_NAME="capibm-powervs-centos-streams8-1-26-2" \
-  IBMPOWERVS_SERVICE_INSTANCE_ID="3229a94c-af54-4212-bf60-6202b6fd0a07" \
-  IBMPOWERVS_NETWORK_NAME="capi-test" \
-  clusterctl generate cluster ibm-powervs-1 --kubernetes-version v1.26.2 \
-  --target-namespace default \
-  --control-plane-machine-count=3 \
-  --worker-machine-count=1 \
-  --flavor=powervs | kubectl apply -f -
-  ```
-
 ### Deploy a PowerVS cluster with infrastructure creation
 
 #### Prerequisites: 
-- Set `EXP_CLUSTER_RESOURCE_SET` to true as the cluster will be deployed with external cloud provider which will create the resources to run the cloud controller manager.
-- Set the `provider-id-fmt` [flag](https://github.com/kubernetes-sigs/cluster-api-provider-ibmcloud/blob/5e7f80878f2252c6ab13c16102de90c784a2624d/main.go#L168-L173) to `v2` via `PROVIDER_ID_FORMAT` environment variable.
 - Already existing infrasturcture resources can be used for cluster creation by setting either the ID or name in spec. If neither are specified, the cluster name will be used for constructing the resource name. For example, if cluster name is `capi-powervs`, PowerVS workspace will be created with name `capi-powervs-serviceInstance`.
-  ```
-  ```
+
+**Note:** While working with unreleased versions like from main branch, instead of `--flavor=powervs-create-infra` use `--from=./templates/cluster-template-powervs-create-infra.yaml`.
 
   ```
     IBMCLOUD_API_KEY=XXXXXXXXXXXX \
@@ -176,37 +162,12 @@ following the steps below.
     --flavor=powervs-create-infra | kubectl apply -f -
   ```
 
-### Deploy a PowerVS cluster with external cloud provider
-
-#### Prerequisites:
-- Set `EXP_CLUSTER_RESOURCE_SET` to true as the cluster will be deployed with external cloud provider which will create the resources to run the cloud controller manager.
-- Set the `provider-id-fmt` [flag](https://github.com/kubernetes-sigs/cluster-api-provider-ibmcloud/blob/5e7f80878f2252c6ab13c16102de90c784a2624d/main.go#L168-L173) to `v2` via `PROVIDER_ID_FORMAT` environment variable.
-
-  ```
-  IBMPOWERVS_SSHKEY_NAME="my-pub-key" \
-  IBMPOWERVS_VIP="192.168.167.6" \
-  IBMPOWERVS_VIP_EXTERNAL="163.68.65.6" \
-  IBMPOWERVS_VIP_CIDR="29" \
-  IBMPOWERVS_IMAGE_NAME="capibm-powervs-centos-streams8-1-26-2" \
-  IBMPOWERVS_SERVICE_INSTANCE_ID="3229a94c-af54-4212-bf60-6202b6fd0a07" \
-  IBMPOWERVS_NETWORK_NAME="capi-test" \
-  IBMACCOUNT_ID="ibm-accountid" \
-  IBMPOWERVS_REGION="osa" \
-  IBMPOWERVS_ZONE="osa21" \
-  BASE64_API_KEY=$(echo -n $IBMCLOUD_API_KEY | base64) \
-  clusterctl generate cluster ibm-powervs-1 --kubernetes-version v1.26.2 \
-  --target-namespace default \
-  --control-plane-machine-count=3 \
-  --worker-machine-count=1 \
-  --flavor=powervs-cloud-provider | kubectl apply -f -
-  ```
-
 ### Deploy a PowerVS cluster with cluster class
 
 #### Prerequisites:
 - To deploy a cluster using [ClusterClass](https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/index.html), set `CLUSTER_TOPOLOGY` environment variable to `true`.
-- Set `EXP_CLUSTER_RESOURCE_SET` to true as the cluster will be deployed with external cloud provider which will create the resources to run the cloud controller manager.
-- Set the `provider-id-fmt` [flag](https://github.com/kubernetes-sigs/cluster-api-provider-ibmcloud/blob/5e7f80878f2252c6ab13c16102de90c784a2624d/main.go#L168-L173) to `v2` via `PROVIDER_ID_FORMAT` environment variable.
+
+**Note:** While working with unreleased versions like from main branch, instead of `--flavor=powervs-clusterclass` use `--from=./templates/cluster-template-powervs-clusterclass.yaml`.
 
   ```
   IBMPOWERVS_CLUSTER_CLASS_NAME="powervs-cc" \
@@ -227,3 +188,16 @@ following the steps below.
   --worker-machine-count=1 \
   --flavor=powervs-clusterclass | kubectl apply -f -
   ```
+
+#### Note: Refer below for more detailed information on PowerVS variables.
+- IBMPOWERVS_CLUSTER_CLASS_NAME : Name of the cluster that user provides.
+- IBMPOWERVS_SSHKEY_NAME : Name of the SSH Key. Refer [here](/topics/capibmadm/powervs/key#3-capibmadm-powervs-key-list) how to get the keys.
+- IBMPOWERVS_VIP, IBMPOWERVS_VIP_EXTERNAL and IBMPOWERVS_VIP_CIDR : Once we have created the network and port, the values will be available on listing the ports. Refer [here](/topics/capibmadm/powervs/port#3-capibmadm-powervs-port-list)
+- IBMPOWERVS_IMAGE_NAME : Name of the custom image. Refer [here](/topics/capibmadm/powervs/image#2-capibmadm-powervs-image-list) to get image details.
+- IBMPOWERVS_SERVICE_INSTANCE_ID : ID of the PowerVS workspace. Refer [here](https://cloud.ibm.com/docs/power-iaas-cli-plugin?topic=power-iaas-cli-plugin-power-iaas-cli-reference-v1#ibmcloud-pi-workspace)
+- IBMACCOUNT_ID : Go to the Account settings page in the IBM Cloud console to view your account ID and type. The account ID is a 32 character, unique account identifier.Refer [here](https://cloud.ibm.com/account/settings)
+- IBMPOWERVS_NETWORK_NAME : The name of the network. Refer [here](/topics/capibmadm/powervs/network#3-capibmadm-powervs-network-list) how to get the network details.
+- [IBMPOWERVS_REGION](/reference/regions-zones-mapping.html)
+- [IBMPOWERVS_ZONE](/reference/regions-zones-mapping.html)
+- IBM_RESOURCE_GROUP : Go to Manage > Account > Account resources > Resource groups in the IBM Cloud console to get the resource group Name.
+- COS_BUCKET_REGION, COS_BUCKET_NAME and COS_OBJECT_NAME : Refer [here](/machine-images/powervs#powervs-images-with-dhcp-based-network) to get the COS details.

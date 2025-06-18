@@ -35,10 +35,11 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/patch"
 
 	infrav1beta2 "sigs.k8s.io/cluster-api-provider-ibmcloud/api/v1beta2"
+	"sigs.k8s.io/cluster-api-provider-ibmcloud/pkg/cloud/services/authenticator"
 	"sigs.k8s.io/cluster-api-provider-ibmcloud/pkg/cloud/services/globaltagging"
 	"sigs.k8s.io/cluster-api-provider-ibmcloud/pkg/cloud/services/utils"
 	"sigs.k8s.io/cluster-api-provider-ibmcloud/pkg/cloud/services/vpc"
@@ -52,8 +53,8 @@ type MachineScopeParams struct {
 	IBMVPCClient    vpc.Vpc
 	Client          client.Client
 	Logger          logr.Logger
-	Cluster         *capiv1beta1.Cluster
-	Machine         *capiv1beta1.Machine
+	Cluster         *clusterv1.Cluster
+	Machine         *clusterv1.Machine
 	IBMVPCCluster   *infrav1beta2.IBMVPCCluster
 	IBMVPCMachine   *infrav1beta2.IBMVPCMachine
 	ServiceEndpoint []endpoints.ServiceEndpoint
@@ -67,8 +68,8 @@ type MachineScope struct {
 
 	IBMVPCClient        vpc.Vpc
 	GlobalTaggingClient globaltagging.GlobalTagging
-	Cluster             *capiv1beta1.Cluster
-	Machine             *capiv1beta1.Machine
+	Cluster             *clusterv1.Cluster
+	Machine             *clusterv1.Machine
 	IBMVPCCluster       *infrav1beta2.IBMVPCCluster
 	IBMVPCMachine       *infrav1beta2.IBMVPCMachine
 	ServiceEndpoint     []endpoints.ServiceEndpoint
@@ -104,8 +105,17 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 		core.SetLoggingLevel(core.LevelDebug)
 	}
 
+	auth, err := authenticator.GetAuthenticator()
+	if err != nil {
+		return nil, fmt.Errorf("error failed to create authenticator: %w", err)
+	}
+
 	// Create Global Tagging client.
-	gtOptions := globaltagging.ServiceOptions{}
+	gtOptions := globaltagging.ServiceOptions{
+		GlobalTaggingV1Options: &globaltaggingv1.GlobalTaggingV1Options{
+			Authenticator: auth,
+		},
+	}
 	// Override the Global Tagging endpoint if provided.
 	if gtEndpoint := endpoints.FetchEndpoints(string(endpoints.GlobalTagging), params.ServiceEndpoint); gtEndpoint != "" {
 		gtOptions.URL = gtEndpoint
@@ -417,7 +427,7 @@ func (m *MachineScope) volumeToVPCVolumeAttachment(volume *infrav1beta2.VPCVolum
 	}
 
 	if volume.Name != "" {
-		bootVolume.Volume.Name = core.StringPtr(volume.Name)
+		bootVolume.Name = core.StringPtr(volume.Name)
 	}
 
 	if volume.Profile != "" {

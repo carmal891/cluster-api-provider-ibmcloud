@@ -9,8 +9,7 @@ linters:
   - dogsled
   - errcheck
   - errchkjson
-  - execinquery
-  - exportloopref
+  - copyloopvar
   - gci
   - goconst
   - gocritic
@@ -89,8 +88,10 @@ linters-settings:
         alias: capiv1alpha3
       - pkg: sigs.k8s.io/cluster-api/api/v1alpha4
         alias: capiv1alpha4
-      - pkg: sigs.k8s.io/cluster-api/api/v1beta1
+      - pkg: sigs.k8s.io/cluster-api/api/core/v1beta1
         alias: capiv1beta1
+      - pkg: sigs.k8s.io/cluster-api/api/core/v1beta2
+        alias: clusterv1
       # CAPI-IBMCLOUD
       - pkg: sigs.k8s.io/cluster-api-provider-ibmcloud/api/v1beta1
         alias: infrav1beta1
@@ -100,10 +101,6 @@ linters-settings:
     allow-unused: false
     allow-leading-space: false
     require-specific: true
-  staticcheck:
-    go: "1.22"
-  stylecheck:
-    go: "1.22"
   gosec:
     excludes:
     - G307 # Deferring unsafe method "Close" on type "\*os.File"
@@ -126,7 +123,7 @@ linters-settings:
     - whyNoLint
     - wrapperFunc
   unused:
-    go: "1.22"
+    go: "1.24"
 issues:
   max-same-issues: 0
   max-issues-per-linter: 0
@@ -208,12 +205,13 @@ issues:
     - gocritic
     text: "deferInLoop: Possible resource leak, 'defer' is called in the 'for' loop"
     path: _test\.go
+  exclude-files:
+  - "zz_generated.*\\.go$"
 
 run:
-  timeout: 10m
+  go: "1.24"
+  timeout: 20m
   build-tags:
   - tools
   - e2e
-  skip-files:
-  - "zz_generated.*\\.go$"
   allow-parallel-runners: true

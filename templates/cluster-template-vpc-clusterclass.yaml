@@ -162,7 +162,7 @@ spec:
       - name: ${IBMVPC_SSHKEY_NAME}
       zone: ${IBMVPC_ZONE}
 ---
-apiVersion: addons.cluster.x-k8s.io/v1beta1
+apiVersion: addons.cluster.x-k8s.io/v1beta2
 kind: ClusterResourceSet
 metadata:
   name: crs-cloud-conf
@@ -392,7 +392,7 @@ data:
           serviceAccountName: cloud-controller-manager
           containers:
             - name: ibm-cloud-controller-manager
-              image: gcr.io/k8s-staging-capi-ibmcloud/powervs-cloud-controller-manager:6c98ec5
+              image: registry.k8s.io/capi-ibmcloud/powervs-cloud-controller-manager:ef83f3f
               args:
                 - --v=2
                 - --cloud-provider=ibm

@@ -5,16 +5,16 @@ following the steps below.
 
 > **Note**:
 > 1. The cluster will be deployed with [cloud controller manager](https://kubernetes.io/docs/concepts/architecture/cloud-controller/)
-> 2. The [template](https://github.com/kubernetes-sigs/cluster-api-provider-ibmcloud/blob/main/templates/cluster-template.yaml) uses the experimental feature gate [clusterresourceset](https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-resource-set.html) which will create the necessary config map, secret and roles to run the cloud controller manager. Set `EXP_CLUSTER_RESOURCE_SET` to true.
-> 3. As a prerequisite, set the `provider-id-fmt` [flag](https://github.com/kubernetes-sigs/cluster-api-provider-ibmcloud/blob/bfb33f159d5edd87dcbbb45942a6ffdc3aedb067/main.go#L137) to `v2` via `PROVIDER_ID_FORMAT` environment variable.
-> 4. To deploy a cluster using [ClusterClass](https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/index.html), refer [here](#deploy-a-cluster-using-ibm-cloud-vpc-infrastructure-using-clusterclass). In additional to the above flags, set `CLUSTER_TOPOLOGY` environment variable to `true`. 
-> 5. The list of IBM Cloud VPC Regions and Zones can be found [here](../../reference/regions-zones-mapping.md).
+> 2. The [template](https://github.com/kubernetes-sigs/cluster-api-provider-ibmcloud/blob/main/templates/cluster-template.yaml) uses the experimental feature gate [clusterresourceset](https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-resource-set.html) which will create the necessary config map, secret and roles to run the cloud controller manager. Set `EXP_CLUSTER_RESOURCE_SET` to `true`.
+> 3. To deploy a cluster using [ClusterClass](https://cluster-api.sigs.k8s.io/tasks/experimental-features/cluster-class/index.html), refer [here](#deploy-a-cluster-using-ibm-cloud-vpc-infrastructure-using-clusterclass). In addition to the above flags, set `CLUSTER_TOPOLOGY` environment variable to `true`. 
+> 4. The list of IBM Cloud VPC Regions and Zones can be found [here](../../reference/regions-zones-mapping.md).
 
 
 1. Using clusterctl, render the yaml through templates and deploy the cluster
 
-
-    **Note:** the `IBMVPC_IMAGE_NAME` value below should reflect the name of the custom qcow2 image
+    > **Note:**
+    > - The `IBMVPC_IMAGE_NAME` value below should reflect the name of the custom qcow2 image.
+    > - While working with unreleased versions like from main branch, instead of `--flavor=vpc-clusterclass` use `--from ./templates/cluster-template-vpc-clusterclass.yaml`.
 
     ```console
     IBMCLOUD_API_KEY="XXXXXXXXXXXXXXXXXX" \
@@ -122,4 +122,13 @@ There are two following variables for controlling the volume size for the boot d
     IBMACCOUNT_ID="ibm-accountid" \
     BASE64_API_KEY=$(echo -n $IBMCLOUD_API_KEY | base64) \
     clusterctl generate cluster ibm-vpc-clusterclass --kubernetes-version v1.26.2 --target-namespace default --control-plane-machine-count=1 --worker-machine-count=2 --from=./templates/cluster-template-vpc-clusterclass.yaml | kubectl apply -f -
-  
+ 
+**Note:** Refer below for more detailed information on VPC variables.
+- IBMVPC_CLUSTER_CLASS_NAME : Name of the cluster that user provides.
+- [IBMVPC_REGION](/reference/regions-zones-mapping.html)
+- [IBMVPC_ZONE](/reference/regions-zones-mapping.html)
+- IBMVPC_RESOURCEGROUP : Go to Manage > Account > Account resources > Resource groups in the IBM Cloud console to get the resource group ID.
+- IBMVPC_IMAGE_NAME : Name of the custom image. Refer [here](/topics/capibmadm/vpc/image#1-capibmadm-vpc-image-list)
+- [IBMVPC_PROFILE](https://cloud.ibm.com/docs/vpc?topic=vpc-profiles&interface=cli)
+- IBMVPC_SSHKEY_NAME : Name of the SSH Key. Refer [here](/topics/capibmadm/vpc/key#1-capibmadm-vpc-key-list) how to get the keys.
+- IBMACCOUNT_ID : Go to the Manage > Account > Account settings page in the IBM Cloud console to view your account ID and type. The account ID is a 32 character, unique account identifier. Refer [here](https://cloud.ibm.com/account/settings)

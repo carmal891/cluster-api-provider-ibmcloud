@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"testing"
 
@@ -27,8 +28,9 @@ import (
 
 	// +kubebuilder:scaffold:imports
 	infrav1beta2 "sigs.k8s.io/cluster-api-provider-ibmcloud/api/v1beta2"
+	"sigs.k8s.io/cluster-api-provider-ibmcloud/internal/webhooks"
 	"sigs.k8s.io/cluster-api-provider-ibmcloud/test/helpers"
-	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 var (
@@ -38,14 +40,15 @@ var (
 
 func TestMain(m *testing.M) {
 	setup()
-	defer teardown()
-	m.Run()
+	result := m.Run()
+	teardown()
+	os.Exit(result)
 }
 
 // Setting up the test environment.
 func setup() {
 	utilruntime.Must(infrav1beta2.AddToScheme(scheme.Scheme))
-	utilruntime.Must(capiv1beta1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(clusterv1.AddToScheme(scheme.Scheme))
 	testEnvConfig := helpers.NewTestEnvironmentConfiguration([]string{
 		path.Join("config", "crd", "bases"),
 	},
@@ -55,32 +58,31 @@ func setup() {
 	if err != nil {
 		panic(err)
 	}
-	if err := (&infrav1beta2.IBMPowerVSCluster{}).SetupWebhookWithManager(testEnv); err != nil {
+	if err := (&webhooks.IBMPowerVSCluster{}).SetupWebhookWithManager(testEnv); err != nil {
 		panic(fmt.Sprintf("Unable to setup IBMPowerVSCluster webhook: %v", err))
 	}
-	if err := (&infrav1beta2.IBMPowerVSMachine{}).SetupWebhookWithManager(testEnv); err != nil {
+	if err := (&webhooks.IBMPowerVSMachine{}).SetupWebhookWithManager(testEnv); err != nil {
 		panic(fmt.Sprintf("Unable to setup IBMPowerVSMachine webhook: %v", err))
 	}
-	if err := (&infrav1beta2.IBMPowerVSMachineTemplate{}).SetupWebhookWithManager(testEnv); err != nil {
+	if err := (&webhooks.IBMPowerVSMachineTemplate{}).SetupWebhookWithManager(testEnv); err != nil {
 		panic(fmt.Sprintf("Unable to setup IBMPowerVSMachineTemplate webhook: %v", err))
 	}
-	if err := (&infrav1beta2.IBMPowerVSImage{}).SetupWebhookWithManager(testEnv); err != nil {
+	if err := (&webhooks.IBMPowerVSImage{}).SetupWebhookWithManager(testEnv); err != nil {
 		panic(fmt.Sprintf("Unable to setup IBMPowerVSImage webhook: %v", err))
 	}
-	if err := (&infrav1beta2.IBMVPCCluster{}).SetupWebhookWithManager(testEnv); err != nil {
+	if err := (&webhooks.IBMVPCCluster{}).SetupWebhookWithManager(testEnv); err != nil {
 		panic(fmt.Sprintf("Unable to setup IBMVPCCluster webhook: %v", err))
 	}
-	if err := (&infrav1beta2.IBMVPCMachine{}).SetupWebhookWithManager(testEnv); err != nil {
+	if err := (&webhooks.IBMVPCMachine{}).SetupWebhookWithManager(testEnv); err != nil {
 		panic(fmt.Sprintf("Unable to setup IBMVPCMachine webhook: %v", err))
 	}
-	if err := (&infrav1beta2.IBMVPCMachineTemplate{}).SetupWebhookWithManager(testEnv); err != nil {
+	if err := (&webhooks.IBMVPCMachineTemplate{}).SetupWebhookWithManager(testEnv); err != nil {
 		panic(fmt.Sprintf("Unable to setup IBMVPCMachineTemplate webhook: %v", err))
 	}
-	if err := (&infrav1beta2.IBMPowerVSClusterTemplate{}).SetupWebhookWithManager(testEnv); err != nil {
+	if err := (&webhooks.IBMPowerVSClusterTemplate{}).SetupWebhookWithManager(testEnv); err != nil {
 		panic(fmt.Sprintf("Unable to setup IBMPowerVSClusterTemplate webhook: %v", err))
 	}
 	go func() {
-		fmt.Println("Starting the manager")
 		if err := testEnv.StartManager(ctx); err != nil {
 			panic(fmt.Sprintf("Failed to start the envtest manager: %v", err))
 		}

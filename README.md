@@ -47,9 +47,9 @@ This provider's versions are compatible with the following versions of Cluster A
 
 |                                         |Cluster API v1alpha4 (v0.4) |Cluster API v1beta1 (v1.x) |
 |:----------------------------------------|:---------------:|:--------------:|
-| CAPIBM v1alpha4 (v0.1.x)                  | ✓               |                |
-| CAPIBM v1beta1 (v0.2.x, v0.3.x)           |                 | ✓              |
-| CAPIBM v1beta2 (v0.[4-9].x, main)         |                 | ✓              |
+| CAPIBM v1alpha4 (v0.1.x)                | ✓               |                |
+| CAPIBM v1beta1 (v0.2.x, v0.3.x)         |                 | ✓              |
+| CAPIBM v1beta2 (v0.[4-11].x, main)      |                 | ✓              |
 
 
 (See [Kubernetes support matrix][cluster-api-supported-v] of Cluster API versions).
@@ -87,3 +87,5 @@ See also our [contributor guide](CONTRIBUTING.md) and the Kubernetes [community 
 Participation in the Kubernetes community is governed by the [Kubernetes Code of Conduct](code-of-conduct.md).
 
 <!-- ANCHOR_END: Community -->
+test
+test

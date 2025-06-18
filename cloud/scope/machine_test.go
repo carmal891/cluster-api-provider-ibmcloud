@@ -30,7 +30,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
-	capiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -46,7 +47,7 @@ func newVPCMachine(clusterName, machineName string) *infrav1beta2.IBMVPCMachine 
 	return &infrav1beta2.IBMVPCMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				capiv1beta1.ClusterNameLabel: clusterName,
+				clusterv1.ClusterNameLabel: clusterName,
 			},
 			Name:      machineName,
 			Namespace: "default",
@@ -133,7 +134,7 @@ func TestSetVPCProviderID(t *testing.T) {
 		g := NewWithT(t)
 		scope := setupMachineScope(clusterName, machineName, mock.NewMockVpc(gomock.NewController(t)))
 		options.ProviderIDFormat = string("v1")
-		err := scope.SetProviderID(core.StringPtr(providerID))
+		err := scope.SetProviderID(ptr.To(providerID))
 		g.Expect(err).ToNot(BeNil())
 	})
 
@@ -144,8 +145,19 @@ func TestSetVPCProviderID(t *testing.T) {
 		utils.GetAccountIDFunc = func() (string, error) {
 			return "dummy-account-id", nil // Return dummy value
 		}
-		err := scope.SetProviderID(core.StringPtr(providerID))
+		err := scope.SetProviderID(ptr.To(providerID))
 		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("Set Provider ID returns error", func(t *testing.T) {
+		g := NewWithT(t)
+		scope := setupMachineScope(clusterName, machineName, mock.NewMockVpc(gomock.NewController(t)))
+		options.ProviderIDFormat = string("v2")
+		utils.GetAccountIDFunc = func() (string, error) {
+			return "", errors.New("error getting accountID") // Return dummy error
+		}
+		err := scope.SetProviderID(ptr.To(providerID))
+		g.Expect(err).NotTo(BeNil())
 	})
 }
 
@@ -251,7 +263,7 @@ func TestCreateMachine(t *testing.T) {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						capiv1beta1.ClusterNameLabel: clusterName,
+						clusterv1.ClusterNameLabel: clusterName,
 					},
 					Name:      machineName,
 					Namespace: "default",
